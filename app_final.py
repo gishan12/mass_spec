@@ -13,7 +13,7 @@ external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
-complete_data = pd.ExcelFile('All_Data copy.xls')
+complete_data = pd.ExcelFile('All_Data copy.xls')  # /home/ishangupta/mysite/data/All_Data copy.xls
 
 sheet_names = complete_data.sheet_names  # global
 
@@ -91,50 +91,93 @@ def get_discrete(mass_1, number_1, error, mass_2=0, number_2=0):
     temp_df = temp_df.drop(labels=[0])
     # print(temp_df.columns)
     temp_df["Peaks_Mass"] = np.ones(len(temp_df)) * np.array(array_of_masses)
-    print(temp_df)
+    # print(temp_df)
     return temp_df
 
 
-app.layout = html.Div([
-    html.Div(children=[
-        html.Label('Checklist mass'),
-        html.Div(children=[
-            dcc.Graph(id='checklist-graph'),
-            dcc.Dropdown(
-                id='energies',
-                options=[{'label': i, 'value': i} for i in columns],
-                value=[columns[0]],
-                multi=True
-            ),
-        ], style={'padding': '10 10', 'width': '85%', 'display': 'inline-block'}
-        ),
-        html.Div(children=[
+app.layout = html.Div(style={'backgroundColor': '#FFFFEE'}, children=[
+    html.Div(
+        className='app-header',
+        children=[
+            html.H1('PHYSICAL CHEMISTRY BERKELEY LAB - MASS SPEC ANALYSIS',
+                    style={'textAlign': 'center', 'color': '#026A7A'}),
+            html.Br(),
+            html.H3('Module 1: Mass Spec Graphs (COUNT VS M/Z)',
+                    style={'textAlign': 'center', 'color': '#026A7A'}),
+            html.Br(),
+            html.P('This graph plots ToF Mass Spec graphs for all energies and distance values'
+                   ' you can select multiple energy and distance pairs to plot superimposed Mass'
+                   ' specs. Additionally, you can click on a set of points consecutively to create'
+                   ' a trace of the peaks you want to focus on. Use the "Undo Trace" button to'
+                   ' delete and entire trace and use the "Undo Last" to delete the last added'
+                   ' point.',
+                   style={'textAlign': 'center', 'color': '#026A7A'}),
             html.Div(children=[
-                html.Button('Undo Trace', id='undo', n_clicks=0)
+                html.Br(),
+                dcc.Dropdown(
+                    id='energies',
+                    options=[{'label': i, 'value': i} for i in columns],
+                    value=[columns[0]],
+                    multi=True
+                ),
+            ], style={'width': '100%', 'display': 'inline-block'}
+            ),
+            html.Br(),
+            html.Br(),
+            html.Div(children=[
+                html.Button('Undo Trace', id='undo', n_clicks=0,
+                            style={'marginLeft': '150px', 'marginRight': '150px'}),
+                html.Button('Undo Last', id='undo-last', n_clicks=0,
+                            style={'marginRight': '150px'}),
+                dcc.Store(id='memory-storage')
             ]
             ),
             html.Div(children=[
-                html.Button('Undo Last', id='undo-last', n_clicks=0),
-                dcc.Store(id='memory-storage')
-            ], style={'margin-top': '6vw'}
-            )
-        ], style={'padding': '10 10', 'display': 'inline-block', 'vertical-align': 'top', 'margin-top': '4vw'}
-        )
-
-    ]),
+                html.Br(),
+                dcc.Graph(id='checklist-graph'),
+                html.Br(),
+            ], style={'padding': '10 10', 'width': '100%', 'display': 'inline-block'}
+            ),
+        ]),
     html.Div([
-        html.I("Enter the Molecular Mass of species one followed by # of molecules"),
         html.Br(),
-        dcc.Input(id="mol_mass1", type="number", placeholder="molecular mass", style={'marginRight': '10px'}),
-        dcc.Input(id="mol_amount1", type="number", placeholder="# of molecules", debounce=True),
-        dcc.Input(id="error", type="number", placeholder="error", debounce=True),
-        dcc.Input(id="mol_mass2", type="number", placeholder="molecular mass 2", style={'marginRight': '10px'}),
-        dcc.Input(id="mol_amount2", type="number", placeholder="# of molecules 2", debounce=True),
+        html.H3('Module 2: Mass Specs With Select Cluster Composition',
+                style={'textAlign': 'center', 'color': '#026A7A'}),
+        html.Br(),
+        html.P('The following Graph allows you to select a certain molecular composition for the '
+               'clusters and plot the mass specs for that specific arrangement at all energy and distance pairs.'
+               ' For example: if you want to focus on a cluster with 2 molecules of Ethanol and 40 '
+               'water molecules with peaks having a spread of around 1 around the m/z ratios, you should input '
+               '46, 2, 0.5, 18, 40. Additionally, you can click on any cluster peaks and get the PIE '
+               'curve for that specific molecular composition at all distances',
+               style={'textAlign': 'center', 'color': '#026A7A'}),
+        html.Br(),
+        dcc.Input(id="mol_mass1", type="number", placeholder="molecular mass",
+                  style={'marginRight': '100px',
+                         'marginLeft': '100px'}),
+        dcc.Input(id="mol_amount1", type="number", placeholder="# of molecules", debounce=True,
+                  style={'marginRight': '100px'}),
+        dcc.Input(id="error", type="number", placeholder="error", debounce=True,
+                  style={'marginRight': '100px'}),
+        dcc.Input(id="mol_mass2", type="number", placeholder="molecular mass 2",
+                  style={'marginRight': '100px'}),
+        dcc.Input(id="mol_amount2", type="number", placeholder="# of molecules 2", debounce=True,
+                  style={'marginRight': '100px'}),
         html.P(id='placeholder')
         # might need to add a dropdown for energy to shorten the stored datasets
-    ]),
+    ], style={}),
+    html.Br(),
+    html.Div(children=[
+        dcc.Dropdown(
+            id='modular-cluster',
+            options=[{'label': i, 'value': i} for i in columns],
+            value=[columns[0]],
+            multi=True
+        ),
+    ], style={'padding': '10 10', 'width': '100%', 'display': 'inline-block'}
+    ),
     html.Div([
-        html.Label('Checklist cluster'),
+        html.Br(),
         html.Div([
             dcc.Graph(id='checklist-graph-3'),
         ], style={'padding': '100 100', 'width': '49%', 'display': 'inline-block'}
@@ -143,15 +186,7 @@ app.layout = html.Div([
                   ], style={'padding': '100 100', 'width': '49%', 'display': 'inline-block'}
                  )
     ]),
-    html.Div(children=[
-        dcc.Dropdown(
-            id='modular-cluster',
-            options=[{'label': i, 'value': i} for i in columns],
-            value=[columns[0]],
-            multi=True
-        ),
-    ], style={'padding': '10 10', 'width': '85%', 'display': 'inline-block'}
-    ),
+    html.Br(),
 ])
 
 undo_trace = 0
@@ -176,7 +211,7 @@ def make_figure(selected_energies, data, click_trace, click_last):
         undo_trace = click_trace
         x_clicked = []
         y_clicked = []
-        print(x_clicked)
+        # print(x_clicked)
         data = None
     if data != None:
         x_clicked.append(data[0])
@@ -188,7 +223,7 @@ def make_figure(selected_energies, data, click_trace, click_last):
             fig.add_trace(go.Scatter(x=x_clicked, y=y_clicked, name='Trend Line'))
         else:
             fig.add_trace(go.Scatter(x=x_clicked, y=y_clicked, name='Trend Line'))
-
+    fig.update_layout(height=500, margin=dict(l=20, r=20, b=20, t=30, pad=10), paper_bgcolor="LightSteelBlue")
     return fig
 
 
@@ -209,7 +244,7 @@ def display_click_data(clickData):
 def make_figure(mass_1, number_1, error, mass_2, number_2):
     global dataframe
     dataframe = get_discrete(mass_1, number_1, error, mass_2, number_2)
-    print(dataframe)
+    # print(dataframe)
     return 'none'
 
 
@@ -223,13 +258,13 @@ def make_figure(select_energy):
     for x in select_energy:
         y_axis = dataframe[x]
         fig.add_trace(go.Scatter(x=x_axis, y=y_axis, name=x))
+    fig.update_layout(height=500, margin=dict(l=20, r=20, b=20, t=30, pad=10), paper_bgcolor="LightSteelBlue")
     return fig
 
 
 @app.callback(
     Output('pie-curve', 'figure'),
     [Input('checklist-graph-3', 'clickData')])
-
 def update_pie_curve(clickData):
     # print(df.head())
     global dataframe
@@ -243,11 +278,11 @@ def update_pie_curve(clickData):
 
     fig = px.line(x=x_axis, y=y_axis)
     fig.update_layout(
-        title="PIE curve of cluster of size " + str(x_value),
-        xaxis_title="energy (eV)",
+        title="PIE curve",
+        xaxis_title="energy distance pairs",
         yaxis_title="Intensity",
     )
-
+    fig.update_layout(height=500, margin=dict(l=20, r=20, b=20, t=30, pad=10), paper_bgcolor="LightSteelBlue")
     return fig
 
 
