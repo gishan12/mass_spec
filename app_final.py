@@ -218,8 +218,7 @@ app.layout = html.Div(style={'backgroundColor': '#FFFFEE'}, children=[
         dcc.Input(id="mol_mass2", type="number", placeholder="molecular mass 2",
                   style={'marginRight': '100px'}),
         dcc.Input(id="mol_amount2", type="number", placeholder="# of molecules 2", debounce=True,
-                  style={'marginRight': '100px'}),
-        html.P(id='placeholder')
+                  style={'marginRight': '100px'})
         # might need to add a dropdown for energy to shorten the stored datasets
     ], style={}),
     html.Br(),
