@@ -10,13 +10,17 @@ import numpy as np
 import plotly.express as px
 import pandas as pd
 
+
 global dataframe
+global main_df
+
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets,
+                suppress_callback_exceptions=True)
 
-complete_data = pd.ExcelFile('All_Data copy.xls')  # /home/ishangupta/mysite/data/All_Data copy.xls
+"""complete_data = pd.ExcelFile('All_Data copy.xls')  # /home/ishangupta/mysite/data/All_Data copy.xls
 
 sheet_names = complete_data.sheet_names  # global
 
@@ -26,14 +30,14 @@ columns = main_df.columns
 main_df.columns = ['Mass'] + ['2mm ' + x for x in columns[1:]]
 
 for x in sheet_names[1:]:
-    df = complete_data.parse(x)
-    columns = df.columns
-    df = df.drop('Mass', axis=1)
-    df.columns = [x + ' ' + i for i in columns[1:]]
-    main_df = main_df.join(df)
+	df = complete_data.parse(x)
+	columns = df.columns
+	df = df.drop('Mass', axis=1)
+	df.columns = [x + ' ' + i for i in columns[1:]]
+	main_df = main_df.join(df)
 
 del df
-columns = main_df.columns[1:]
+columns = main_df.columns[1:]"""
 
 
 # print(df.head(3))
@@ -100,7 +104,7 @@ def get_discrete(mass_1, number_1, error, mass_2=0, number_2=0):
 
 def parse_contents(contents, filename, date):
     content_type, content_string = contents.split(',')
-
+    global main_df
     decoded = base64.b64decode(content_string)
     try:
         if 'csv' in filename:
@@ -115,21 +119,124 @@ def parse_contents(contents, filename, date):
         return html.Div([
             'There was an error processing this file.'
         ])
+    sheet_names = complete_data.sheet_names  # global
+
+    main_df = complete_data.parse(sheet_names[0])
+
+    columns = main_df.columns
+    main_df.columns = ['Mass'] + [str(sheet_names[0]) + ' ' + x for x in columns[1:]]
+
+    for x in sheet_names[1:]:
+        df = complete_data.parse(x)
+        columns = df.columns
+        df = df.drop('Mass', axis=1)
+        df.columns = [x + ' ' + i for i in columns[1:]]
+        main_df = main_df.join(df)
+
+    del df
+    columns = main_df.columns[1:]
 
     return html.Div([
-        html.H5(filename),
-        html.H6(datetime.datetime.fromtimestamp(date)),
-        html.H5(complete_data.sheet_names),
-        # For debugging, display the raw contents provided by the web browser
-        #html.Div('Raw Content'),
-        #html.Pre(contents[0:200] + '...', style={
-        #    'whiteSpace': 'pre-wrap',
-        #    'wordBreak': 'break-all'
-        #})
+        html.Div(
+            className='app-header',
+            children=[
+                html.H1('PHYSICAL CHEMISTRY BERKELEY LAB - MASS SPEC ANALYSIS',
+                        style={'textAlign': 'center', 'color': '#026A7A'}),
+                html.Br(),
+                html.H3('Module 1: Mass Spec Graphs (COUNT VS M/Z)',
+                        style={'textAlign': 'center', 'color': '#026A7A'}),
+                html.Br(),
+                html.P('This graph plots ToF Mass Spec graphs for all energies and distance values'
+                       ' you can select multiple energy and distance pairs to plot superimposed Mass'
+                       ' specs. Additionally, you can click on a set of points consecutively to create'
+                       ' a trace of the peaks you want to focus on. Use the "Undo Trace" button to'
+                       ' delete and entire trace and use the "Undo Last" to delete the last added'
+                       ' point.',
+                       style={'textAlign': 'center', 'color': '#026A7A'}),
+                html.Div(children=[
+                    html.Br(),
+                    dcc.Dropdown(
+                        id='energies',
+                        options=[{'label': i, 'value': i} for i in columns],
+                        value=[columns[0]],
+                        multi=True
+                    ),
+                ], style={'width': '100%', 'display': 'inline-block'}
+                ),
+                html.Br(),
+                html.Br(),
+                html.Div(children=[
+                    html.Button('Undo Trace', id='undo', n_clicks=0,
+                                style={'marginLeft': '150px', 'marginRight': '150px'}),
+                    html.Button('Undo Last', id='undo-last', n_clicks=0,
+                                style={'marginRight': '150px'}),
+                    dcc.Store(id='memory-storage')
+                ]
+                ),
+                html.Div(children=[
+                    html.Br(),
+                    dcc.Graph(id='checklist-graph'),
+                    html.Br(),
+                ], style={'padding': '10 10', 'width': '100%', 'display': 'inline-block'}
+                ),
+            ]),
+        html.Div([
+            html.Br(),
+            html.H3('Module 2: Mass Specs With Select Cluster Composition',
+                    style={'textAlign': 'center', 'color': '#026A7A'}),
+            html.Br(),
+            html.P('The following Graph allows you to select a certain molecular composition for the '
+                   'clusters and plot the mass specs for that specific arrangement at all energy and distance pairs.'
+                   ' For example: if you want to focus on a cluster with 2 molecules of Ethanol and 40 '
+                   'water molecules with peaks having a spread of around 1 around the m/z ratios, you should input '
+                   '46, 2, 0.5, 18, 40. Additionally, you can click on any cluster peaks and get the PIE '
+                   'curve for that specific molecular composition at all distances',
+                   style={'textAlign': 'center', 'color': '#026A7A'}),
+            html.Br(),
+            dcc.Input(id="mol_mass1", type="number", placeholder="molecular mass",
+                      style={'marginRight': '100px',
+                             'marginLeft': '100px'}),
+            dcc.Input(id="mol_amount1", type="number", placeholder="# of molecules", debounce=True,
+                      style={'marginRight': '100px'}),
+            dcc.Input(id="error", type="number", placeholder="error", debounce=True,
+                      style={'marginRight': '100px'}),
+            dcc.Input(id="mol_mass2", type="number", placeholder="molecular mass 2",
+                      style={'marginRight': '100px'}),
+            dcc.Input(id="mol_amount2", type="number", placeholder="# of molecules 2", debounce=True,
+                      style={'marginRight': '100px'}),
+            html.P(id='placeholder')
+            # might need to add a dropdown for energy to shorten the stored datasets
+        ], style={}),
+        html.Br(),
+        html.Div(children=[
+            dcc.Dropdown(
+                id='modular-cluster',
+                options=[{'label': i, 'value': i} for i in columns],
+                value=[columns[0]],
+                multi=True
+            ),
+        ], style={'padding': '10 10', 'width': '100%', 'display': 'inline-block'}
+        ),
+        html.Div([
+            html.Br(),
+            html.Div([
+                dcc.Graph(id='checklist-graph-3'),
+            ], style={'padding': '100 100', 'width': '49%', 'display': 'inline-block'}
+            ),
+            html.Div([dcc.Graph(id='pie-curve'),
+                      ], style={'padding': '100 100', 'width': '49%', 'display': 'inline-block'}
+                     )
+        ]),
+        html.Br()
     ])
 
 
 app.layout = html.Div(style={'backgroundColor': '#FFFFEE'}, children=[
+    html.H5('How you file should be formatted! Upload one ".xls" file with MULTIPLE SHEETS labelled appropriately. '
+            'The first column of each sheet should be the M/Z values, and the other columns should correspond to '
+            'mass spec data with a changing variable (Eg. for water clusters: Photon Energy). Lastly, the different'
+            ' sheets should correspond to a second variable that is being changed (Eg. for water clusters: Distance '
+            'between nozzle and beam).'),
     html.Div([
         dcc.Upload(
             id='upload-data',
@@ -151,98 +258,8 @@ app.layout = html.Div(style={'backgroundColor': '#FFFFEE'}, children=[
             multiple=False
         ),
         html.Div(id='output-data-upload'),
-    ]),
-    html.Div(
-        className='app-header',
-        children=[
-            html.H1('PHYSICAL CHEMISTRY BERKELEY LAB - MASS SPEC ANALYSIS',
-                    style={'textAlign': 'center', 'color': '#026A7A'}),
-            html.Br(),
-            html.H3('Module 1: Mass Spec Graphs (COUNT VS M/Z)',
-                    style={'textAlign': 'center', 'color': '#026A7A'}),
-            html.Br(),
-            html.P('This graph plots ToF Mass Spec graphs for all energies and distance values'
-                   ' you can select multiple energy and distance pairs to plot superimposed Mass'
-                   ' specs. Additionally, you can click on a set of points consecutively to create'
-                   ' a trace of the peaks you want to focus on. Use the "Undo Trace" button to'
-                   ' delete and entire trace and use the "Undo Last" to delete the last added'
-                   ' point.',
-                   style={'textAlign': 'center', 'color': '#026A7A'}),
-            html.Div(children=[
-                html.Br(),
-                dcc.Dropdown(
-                    id='energies',
-                    options=[{'label': i, 'value': i} for i in columns],
-                    value=[columns[0]],
-                    multi=True
-                ),
-            ], style={'width': '100%', 'display': 'inline-block'}
-            ),
-            html.Br(),
-            html.Br(),
-            html.Div(children=[
-                html.Button('Undo Trace', id='undo', n_clicks=0,
-                            style={'marginLeft': '150px', 'marginRight': '150px'}),
-                html.Button('Undo Last', id='undo-last', n_clicks=0,
-                            style={'marginRight': '150px'}),
-                dcc.Store(id='memory-storage')
-            ]
-            ),
-            html.Div(children=[
-                html.Br(),
-                dcc.Graph(id='checklist-graph'),
-                html.Br(),
-            ], style={'padding': '10 10', 'width': '100%', 'display': 'inline-block'}
-            ),
-        ]),
-    html.Div([
-        html.Br(),
-        html.H3('Module 2: Mass Specs With Select Cluster Composition',
-                style={'textAlign': 'center', 'color': '#026A7A'}),
-        html.Br(),
-        html.P('The following Graph allows you to select a certain molecular composition for the '
-               'clusters and plot the mass specs for that specific arrangement at all energy and distance pairs.'
-               ' For example: if you want to focus on a cluster with 2 molecules of Ethanol and 40 '
-               'water molecules with peaks having a spread of around 1 around the m/z ratios, you should input '
-               '46, 2, 0.5, 18, 40. Additionally, you can click on any cluster peaks and get the PIE '
-               'curve for that specific molecular composition at all distances',
-               style={'textAlign': 'center', 'color': '#026A7A'}),
-        html.Br(),
-        dcc.Input(id="mol_mass1", type="number", placeholder="molecular mass",
-                  style={'marginRight': '100px',
-                         'marginLeft': '100px'}),
-        dcc.Input(id="mol_amount1", type="number", placeholder="# of molecules", debounce=True,
-                  style={'marginRight': '100px'}),
-        dcc.Input(id="error", type="number", placeholder="error", debounce=True,
-                  style={'marginRight': '100px'}),
-        dcc.Input(id="mol_mass2", type="number", placeholder="molecular mass 2",
-                  style={'marginRight': '100px'}),
-        dcc.Input(id="mol_amount2", type="number", placeholder="# of molecules 2", debounce=True,
-                  style={'marginRight': '100px'}),
-        html.P(id='placeholder')
-        # might need to add a dropdown for energy to shorten the stored datasets
-    ], style={}),
-    html.Br(),
-    html.Div(children=[
-        dcc.Dropdown(
-            id='modular-cluster',
-            options=[{'label': i, 'value': i} for i in columns],
-            value=[columns[0]],
-            multi=True
-        ),
-    ], style={'padding': '10 10', 'width': '100%', 'display': 'inline-block'}
-    ),
-    html.Div([
-        html.Br(),
-        html.Div([
-            dcc.Graph(id='checklist-graph-3'),
-        ], style={'padding': '100 100', 'width': '49%', 'display': 'inline-block'}
-        ),
-        html.Div([dcc.Graph(id='pie-curve'),
-                  ], style={'padding': '100 100', 'width': '49%', 'display': 'inline-block'}
-                 )
-    ]),
-    html.Br(),
+    ])
+
 ])
 
 undo_trace = 0
@@ -253,12 +270,10 @@ x_clicked, y_clicked = [], []
 @app.callback(Output('output-data-upload', 'children'),
               [Input('upload-data', 'contents')],
               [State('upload-data', 'filename'),
-              State('upload-data', 'last_modified')])
+               State('upload-data', 'last_modified')])
 def update_output(list_of_contents, list_of_names, list_of_dates):
     if list_of_contents is not None:
-        children = [
-            parse_contents(c, n, d) for c, n, d in
-            zip(list_of_contents, list_of_names, list_of_dates)]
+        children = parse_contents(list_of_contents, list_of_names, list_of_dates)
         return children
 
 
