@@ -11,10 +11,15 @@ import plotly.express as px
 import pandas as pd
 
 global dataframe
+global pie_curves
+pie_curves = {}
+global pie_split
+pie_split = {}
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets,
+                suppress_callback_exceptions=True)
 
 complete_data = pd.ExcelFile('All_Data copy.xls')  # /home/ishangupta/mysite/data/All_Data copy.xls
 
@@ -98,60 +103,7 @@ def get_discrete(mass_1, number_1, error, mass_2=0, number_2=0):
     return temp_df
 
 
-def parse_contents(contents, filename, date):
-    content_type, content_string = contents.split(',')
-
-    decoded = base64.b64decode(content_string)
-    try:
-        if 'csv' in filename:
-            # Assume that the user uploaded a CSV file
-            complete_data = pd.read_csv(
-                io.StringIO(decoded.decode('utf-8')))
-        elif 'xls' in filename:
-            # Assume that the user uploaded an excel file
-            complete_data = pd.ExcelFile(io.BytesIO(decoded))
-    except Exception as e:
-        print(e)
-        return html.Div([
-            'There was an error processing this file.'
-        ])
-
-    return html.Div([
-        html.H5(filename),
-        html.H6(datetime.datetime.fromtimestamp(date)),
-        html.H5(complete_data.sheet_names),
-        # For debugging, display the raw contents provided by the web browser
-        #html.Div('Raw Content'),
-        #html.Pre(contents[0:200] + '...', style={
-        #    'whiteSpace': 'pre-wrap',
-        #    'wordBreak': 'break-all'
-        #})
-    ])
-
-
 app.layout = html.Div(style={'backgroundColor': '#FFFFEE'}, children=[
-    html.Div([
-        dcc.Upload(
-            id='upload-data',
-            children=html.Div([
-                'Drag and Drop or ',
-                html.A('Select Files')
-            ]),
-            style={
-                'width': '100%',
-                'height': '60px',
-                'lineHeight': '60px',
-                'borderWidth': '1px',
-                'borderStyle': 'dashed',
-                'borderRadius': '5px',
-                'textAlign': 'center',
-                'margin': '10px'
-            },
-            # Allow multiple files to be uploaded
-            multiple=False
-        ),
-        html.Div(id='output-data-upload'),
-    ]),
     html.Div(
         className='app-header',
         children=[
@@ -229,36 +181,70 @@ app.layout = html.Div(style={'backgroundColor': '#FFFFEE'}, children=[
             value=[columns[0]],
             multi=True
         ),
+        html.Label(id='placeholder')
     ], style={'padding': '10 10', 'width': '100%', 'display': 'inline-block'}
     ),
     html.Div([
         html.Br(),
         html.Div([
             dcc.Graph(id='checklist-graph-3'),
-        ], style={'padding': '100 100', 'width': '49%', 'display': 'inline-block'}
+        ], style={'padding': '100 100', 'width': '100%', 'display': 'inline-block'}
         ),
+        html.Br(),
+        html.H3('Module 3: A Closer Look at PIE Curves',
+                style={'textAlign': 'center', 'color': '#026A7A'}),
+        html.Br(),
+        html.P('After the graph above has a plot displayed, click on any point to see the super-PIE'
+               ' curve for the m/z ratio. A super-PIE curve all the PIE curves for that m/z stitched '
+               'together based on a changing variable (in this case distance). Graph "3" will show '
+               'one unique super-PIE curve at a time while Graph "4" will show a superimposition of '
+               'super-PIE curves for all the points that are clicked. Both, "2" and "3" are meant for '
+               'quick looks at the PIE data to see what should be focused on.',
+               style={'textAlign': 'center', 'color': '#026A7A'}),
+        html.Br(),
+        html.P('Once you have specific m/z and distance values you want to compare in greater depth, '
+               'you can select the m/z on Graph "2" and then from the drop down below choose the '
+               'corresponding distance. If you wish to compare one m/z value over all distances, '
+               'keep changing the distance chosen in the drop down!',
+               style={'textAlign': 'center', 'color': '#026A7A'}),
+        html.Br(),
         html.Div([dcc.Graph(id='pie-curve'),
-                  ], style={'padding': '100 100', 'width': '49%', 'display': 'inline-block'}
-                 )
+                  ], style={'padding': '100 100', 'width': '40%', 'display': 'inline-block',
+                            'marginLeft': '7.5%', 'marginRight': '5%'}
+                 ),
+        html.Div([dcc.Graph(id='pie-curve-superimposed'),
+                  ], style={'padding': '100 100', 'width': '40%', 'display': 'inline-block',
+                            'marginRight': '7.5%'}
+                 ),
+        html.Br(),
+        html.Br(),
+        dcc.Dropdown(
+            id='select-pie',
+            options=[{'label': i, 'value': i} for i in sheet_names],
+            value=[sheet_names[0]],
+            multi=False
+        ),
+        html.Br(),
+        html.Br(),
+        html.Div([dcc.Graph(id='final-graph'),
+                  ], style={'padding': '100 100', 'width': '70%', 'display': 'inline-block',
+                            'marginLeft': '15%'}
+                 ),
     ]),
+
     html.Br(),
+    html.Br(),
+    html.Br(),
+    html.P('Designed, Managed and Coded by Ishan Gupta :)',
+           style={'textAlign': 'center', 'color': '#FF0000'}),
+    html.P("ishan.gupta@berkeley.edu | ChemE and Data Science @ UC Berkeley '23",
+           style={'textAlign': 'center', 'color': '#FF0000'})
+
 ])
 
 undo_trace = 0
 undo_last = 0
 x_clicked, y_clicked = [], []
-
-
-@app.callback(Output('output-data-upload', 'children'),
-              [Input('upload-data', 'contents')],
-              [State('upload-data', 'filename'),
-              State('upload-data', 'last_modified')])
-def update_output(list_of_contents, list_of_names, list_of_dates):
-    if list_of_contents is not None:
-        children = [
-            parse_contents(c, n, d) for c, n, d in
-            zip(list_of_contents, list_of_names, list_of_dates)]
-        return children
 
 
 @app.callback(
@@ -290,7 +276,12 @@ def make_figure(selected_energies, data, click_trace, click_last):
             fig.add_trace(go.Scatter(x=x_clicked, y=y_clicked, name='Trend Line'))
         else:
             fig.add_trace(go.Scatter(x=x_clicked, y=y_clicked, name='Trend Line'))
-    fig.update_layout(height=500, margin=dict(l=20, r=20, b=20, t=30, pad=10), paper_bgcolor="LightSteelBlue")
+    fig.update_layout(
+        title='1: Raw Mass Specs',
+        height=500,
+        margin=dict(l=20, r=20, b=20, t=30, pad=10),
+        paper_bgcolor="LightSteelBlue"
+    )
     return fig
 
 
@@ -325,7 +316,12 @@ def make_figure(select_energy):
     for x in select_energy:
         y_axis = dataframe[x]
         fig.add_trace(go.Scatter(x=x_axis, y=y_axis, name=x))
-    fig.update_layout(height=500, margin=dict(l=20, r=20, b=20, t=30, pad=10), paper_bgcolor="LightSteelBlue")
+    fig.update_layout(
+        title='2: Cluster Mass Specs',
+        height=500,
+        margin=dict(l=20, r=20, b=20, t=30, pad=10),
+        paper_bgcolor="LightSteelBlue"
+    )
     return fig
 
 
@@ -345,19 +341,83 @@ def update_pie_curve(clickData):
 
     fig = px.line(x=x_axis, y=y_axis)
     fig.update_layout(
-        title="PIE curve",
+        title="3: unique super-PIE curve",
         xaxis_title="energy distance pairs",
         yaxis_title="Intensity",
+        height=500,
+        margin=dict(l=20, r=20, b=20, t=30, pad=10),
+        paper_bgcolor="LightSteelBlue"
     )
-    fig.update_layout(height=500, margin=dict(l=20, r=20, b=20, t=30, pad=10), paper_bgcolor="LightSteelBlue")
+    return fig
+
+
+@app.callback(
+    Output('pie-curve-superimposed', 'figure'),
+    [Input('checklist-graph-3', 'clickData')])
+def update_pie_curve(clickData):
+    # print(df.head())
+    global dataframe
+    global pie_curves
+    points_dict = clickData['points'][0]
+    x_value = points_dict['x']
+
+    transposed_cluster = dataframe.T
+    transposed_cluster.columns = dataframe['Peaks_Mass']
+    transposed_cluster = transposed_cluster.drop(['Peaks_Mass'])
+
+    x_axis = transposed_cluster.index
+    pie_curves[x_value] = transposed_cluster[x_value]
+
+    fig = go.Figure()
+
+    for x in pie_curves:
+        y_axis = pie_curves[x]
+        fig.add_trace(go.Scatter(x=x_axis, y=y_axis, name=x))
+    fig.update_layout(
+        title="4: multiple super-PIE curves",
+        xaxis_title="energy distance pairs",
+        yaxis_title="Intensity",
+        height=500,
+        margin=dict(l=20, r=20, b=20, t=30, pad=10),
+        paper_bgcolor="LightSteelBlue"
+    )
+    return fig
+
+
+@app.callback(
+    Output('final-graph', 'figure'),
+    [Input('checklist-graph-3', 'clickData'), Input('select-pie', 'value')])
+def final_pie(clickData, distance):
+    # print(df.head())
+    global dataframe
+    global pie_split
+    points_dict = clickData['points'][0]
+    x_value = points_dict['x']
+
+    transposed_cluster = dataframe.T
+    transposed_cluster.columns = dataframe['Peaks_Mass']
+    transposed_cluster = transposed_cluster.drop(['Peaks_Mass'])
+    energies_list = list(transposed_cluster.index)
+    transposed_cluster = transposed_cluster[(np.char.find(energies_list, distance, start=0) >= 0)]
+    x_axis = [x[len(distance):] for x in energies_list]
+    pie_split[str(x_value) + 'm/z at ' + distance] = list(transposed_cluster[x_value])
+    # print(pie_split)
+    fig = go.Figure()
+    for x in pie_split:
+        y_axis = pie_split[x]
+        fig.add_trace(go.Scatter(x=x_axis, y=y_axis, name=x))
+    fig.update_layout(
+        title="5: PIE curve with select distance and m/z",
+        xaxis_title="energy",
+        yaxis_title="Intensity",
+        height=500,
+        margin=dict(l=20, r=20, b=20, t=30, pad=10),
+        paper_bgcolor="LightSteelBlue"
+    )
     return fig
 
 
 if __name__ == '__main__':
     app.run_server(debug=True)
 
-# Change the pie to click and allow multiple
-# Add 3D plot carefully
-# Derivative of PIE curves
-# Add dropdown for distance too in clusters will have to read multiple sheets but it's okay
-# Add drag and drop for the Excel (multiple pages) or Multiple CSvs? figure this
+
