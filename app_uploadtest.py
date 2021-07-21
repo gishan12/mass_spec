@@ -172,6 +172,9 @@ def parse_contents(contents, filename, date):
                                 style={'marginLeft': '150px', 'marginRight': '150px'}),
                     html.Button('Undo Last', id='undo-last', n_clicks=0,
                                 style={'marginRight': '150px'}),
+                    html.Button('Download CSV', id='btn_csv',
+                                style={'marginRight': '150px'}),
+                    dcc.Download(id="download-dataframe-csv"),
                     dcc.Store(id='memory-storage')
                 ]
                 ),
@@ -196,16 +199,19 @@ def parse_contents(contents, filename, date):
                    style={'textAlign': 'center', 'color': '#026A7A'}),
             html.Br(),
             dcc.Input(id="mol_mass1", type="number", placeholder="molecular mass",
-                      style={'marginRight': '100px',
-                             'marginLeft': '100px'}),
+                      style={'marginRight': '60px',
+                             'marginLeft': '60px'}),
             dcc.Input(id="mol_amount1", type="number", placeholder="# of molecules", debounce=True,
-                      style={'marginRight': '100px'}),
+                      style={'marginRight': '60px'}),
             dcc.Input(id="error", type="number", placeholder="error", debounce=True,
-                      style={'marginRight': '100px'}),
+                      style={'marginRight': '60px'}),
             dcc.Input(id="mol_mass2", type="number", placeholder="molecular mass 2",
-                      style={'marginRight': '100px'}),
+                      style={'marginRight': '60px'}),
             dcc.Input(id="mol_amount2", type="number", placeholder="# of molecules 2", debounce=True,
-                      style={'marginRight': '100px'})
+                      style={'marginRight': '60px'}),
+            html.Button('Download CSV', id='btn_csv_2',
+                        style={'marginRight': '30px'}),
+            dcc.Download(id="download-dataframe-csv-2"),
             # might need to add a dropdown for energy to shorten the stored datasets
         ], style={}),
         html.Br(),
@@ -243,6 +249,11 @@ def parse_contents(contents, filename, date):
                    'keep changing the distance chosen in the drop down!',
                    style={'textAlign': 'center', 'color': '#026A7A'}),
             html.Br(),
+            html.Button('Download CSV', id='btn_csv_3',
+                        style={'marginLeft': '70%'}),
+            dcc.Download(id="download-dataframe-csv-3"),
+            html.Br(),
+            html.Br(),
             html.Div([dcc.Graph(id='pie-curve'),
                       ], style={'padding': '100 100', 'width': '40%', 'display': 'inline-block',
                                 'marginLeft': '7.5%', 'marginRight': '5%'}
@@ -259,6 +270,11 @@ def parse_contents(contents, filename, date):
                 value=[sheet_names[0]],
                 multi=False
             ),
+            html.Br(),
+            html.Button('Download CSV', id='btn_csv_4',
+                        style={'marginLeft': '45%'}),
+            dcc.Download(id="download-dataframe-csv-4"),
+            html.Br(),
             html.Br(),
             html.Br(),
             html.Div([dcc.Graph(id='final-graph'),
@@ -324,6 +340,17 @@ def update_output(list_of_contents, list_of_names, list_of_dates):
 
 
 @app.callback(
+    Output("download-dataframe-csv", "data"),
+    Input("btn_csv", "n_clicks"),
+    prevent_initial_call=True,
+)
+def func(n_clicks):
+    global x_clicked, y_clicked
+    df_download = pd.DataFrame({"Trace-x": x_clicked, "Trace-y": y_clicked})
+    return dcc.send_data_frame(df_download.to_csv, "trial.csv")
+
+
+@app.callback(
     Output('checklist-graph', 'figure'),
     [Input('energies', 'value'), Input('memory-storage', 'data'), Input('undo', 'n_clicks'),
      Input('undo-last', 'n_clicks')])
@@ -352,7 +379,12 @@ def make_figure(selected_energies, data, click_trace, click_last):
             fig.add_trace(go.Scatter(x=x_clicked, y=y_clicked, name='Trend Line'))
         else:
             fig.add_trace(go.Scatter(x=x_clicked, y=y_clicked, name='Trend Line'))
-    fig.update_layout(height=500, margin=dict(l=20, r=20, b=20, t=30, pad=10), paper_bgcolor="LightSteelBlue")
+    fig.update_layout(
+        title='1: Raw Mass Specs',
+        height=500,
+        margin=dict(l=20, r=20, b=20, t=30, pad=10),
+        paper_bgcolor="LightSteelBlue"
+    )
     return fig
 
 
@@ -396,6 +428,21 @@ def make_figure(select_energy):
     return fig
 
 
+cluster_download = 0
+
+
+@app.callback(
+    Output("download-dataframe-csv-2", "data"),
+    [Input("btn_csv_2", "n_clicks"), Input('modular-cluster', 'value')],
+    prevent_initial_call=True,
+)
+def func(n_clicks, selected_energies):
+    global dataframe, cluster_download
+    if n_clicks > cluster_download:
+        df_download_2 = dataframe[['Peaks_Mass'] + selected_energies]
+        return dcc.send_data_frame(df_download_2.to_csv, "cluster.csv")
+
+
 @app.callback(
     Output('pie-curve', 'figure'),
     [Input('checklist-graph-3', 'clickData')])
@@ -420,6 +467,17 @@ def update_pie_curve(clickData):
         paper_bgcolor="LightSteelBlue"
     )
     return fig
+
+
+@app.callback(
+    Output("download-dataframe-csv-3", "data"),
+    Input("btn_csv_3", "n_clicks"),
+    prevent_initial_call=True,
+)
+def func(n_clicks):
+    global pie_curves
+    df_download_3 = pd.DataFrame(pie_curves)
+    return dcc.send_data_frame(df_download_3.to_csv, "Super PIE curves.csv")
 
 
 @app.callback(
@@ -455,6 +513,7 @@ def update_pie_curve(clickData):
     return fig
 
 
+
 @app.callback(
     Output('final-graph', 'figure'),
     [Input('checklist-graph-3', 'clickData'), Input('select-pie', 'value')])
@@ -486,6 +545,17 @@ def final_pie(clickData, distance):
         paper_bgcolor="LightSteelBlue"
     )
     return fig
+
+
+@app.callback(
+    Output("download-dataframe-csv-4", "data"),
+    Input("btn_csv_4", "n_clicks"),
+    prevent_initial_call=True,
+)
+def func(n_clicks):
+    global pie_split
+    df_download_4 = pd.DataFrame(pie_split)
+    return dcc.send_data_frame(df_download_4.to_csv, "PIE curves.csv")
 
 
 if __name__ == '__main__':
